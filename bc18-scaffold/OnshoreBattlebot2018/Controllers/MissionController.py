@@ -66,6 +66,8 @@ class MissionController:
         self.rocket_missions = []
 
         self.rocketCount = 0
+        self.MustBuildRocket = False
+        self.structureNeedsBuild = False
 
     # Adds a new mission created by outside source
     def AddMission(self, mission, mission_type, mission_info):
@@ -92,7 +94,7 @@ class MissionController:
 
         if unit_type == bc.UnitType.Worker:
             if len(self.worker_missions) > 0:
-                print("Worker mission assigned")
+                print("Worker mission assigned {}".format(self.worker_missions[0].action))
                 return self.worker_missions.pop(0)
             else:
                 return self.__create_new_worker_mission__()
@@ -121,57 +123,63 @@ class MissionController:
             else:
                 return self.__create_new_combat_mission__()
 
+    def CreateBuildMission(self,structure):
+        new_mission = Mission()
+        new_mission.action = Missions.Build
+        new_mission.info = MissionInfo()
+        new_map_location = structure.location.map_location().clone()
+        x = random.randint(-1,1)
+        y = random.randint(-1,1)
+        if x == 0 and y == 0:
+            x = 1
+        new_mission.info.map_location = bc.MapLocation(bc.Planet.Earth,new_map_location.x + x,new_map_location.y + y )
+        new_mission.info.map_location = new_map_location
+        new_mission.info.unit_id = structure.id
+        new_mission.info.unit = structure
+        if structure.unit_type == bc.UnitType.Rocket:
+            new_mission.info.isRocket = True
+        return new_mission
+
+    def CreateFactoryBlueprintMission(self, location):
+        new_mission = Mission()
+        new_mission.action = Missions.CreateBlueprint
+        new_mission.info = MissionInfo()
+        #map_location = bc.MapLocation(self.game_controller.planet(), 0, 0)
+        #map_location.x = random.randint(0, 12)
+        #map_location.y = random.randint(0, 12)
+        new_mission.info.map_location = location # TODO get open location from the map
+        
+        return new_mission
+
+    def CreateRocketBlueprintMission(self,location):
+        new_mission = Mission()
+        new_mission.action = Missions.CreateBlueprint
+        new_mission.info = MissionInfo()
+        new_mission.info.isRocket = True
+       # map_location = bc.MapLocation(self.game_controller.planet(), 0, 0)
+       # map_location.x = random.randint(0, 12)
+        #map_location.y = random.randint(0, 12)
+        new_mission.info.map_location = location # TODO get open location from the map
+        #self.rocketCount += 1
+        self.MustBuildRocket = False
+        return new_mission
+
+    def GetMarsLocation(self):
+        location = self.map_controller.GetRandomMarsNode()
+        return location
+
     def __create_new_worker_mission__(self):
         #Determine what mission to assign based on the current strategy
         if self.strategy_controller.unitStrategy == UnitStrategies.Default:
 
-            factory_count = 0
-            units = self.game_controller.my_units()
-            for other in units:
-                if other.unit_type == bc.UnitType.Factory:
-                    factory_count += 1
-            chance = random.randint(1, 100)
-
-            #Build Rocket
-            if self.researchTreeController.is_rocket_researched() and rocketCount == 0:
-                newMission = Mission()
-                newMission.action = Missions.BuildRocket
-                newMission.info = MissionInfo()
-                newMission.info.isRocket = True
-                map_location = bc.MapLocation(self.game_controller.planet(), 0, 0)
-                map_location.x = random.randint(0, 12)
-                map_location.y = random.randint(0, 12)
-                new_mission.info.mapLocation = map_location # TODO get open location from the map
-                rocketCount += 1
-                return new_mission
-            #Build Factory
-            elif factory_count < 5 and chance > 50:
-                new_mission = Mission()
-                new_mission.action = Missions.CreateBlueprint
-                new_mission.info = MissionInfo()
-                map_location = bc.MapLocation(self.game_controller.planet(), 0, 0)
-                map_location.x = random.randint(0, 12)
-                map_location.y = random.randint(0, 12)
-                new_mission.info.mapLocation = map_location # TODO get open location from the map
-                return new_mission
             #Mine Karbonite
-            elif self.game_controller.karbonite() < 20 and chance > 25:
-                new_mission = Mission()
-                new_mission.action = Missions.Mining
-                map_location = bc.MapLocation(self.game_controller.planet(), 0, 0)
-                map_location.x = random.randint(0, 10)
-                map_location.y = random.randint(0, 10)
-                new_mission.info = map_location # TODO get mining location from map
-                return new_mission
-            #Random Movement
-            elif True:
-                new_mission = Mission()
-                new_mission.action = Missions.RandomMovement
-                return new_mission
-            else:
-                new_mission = Mission()
-                new_mission.action = Missions.Idle
-                return new_mission
+            new_mission = Mission()
+            new_mission.action = Missions.Mining
+            map_location = bc.MapLocation(self.game_controller.planet(), 0, 0)
+            map_location.x = random.randint(0, 10)
+            map_location.y = random.randint(0, 10)
+            new_mission.info = map_location # TODO get mining location from map
+            return new_mission
 
     def __create_new_healer_mission__(self):
 
@@ -224,31 +232,32 @@ class MissionController:
             #Balanced production chance
 
         chance = random.randint(1, 100)
-        if chance > production_chance[0]:
-            new_mission = Mission()
-            new_mission.action = Missions.TrainBot
-            new_mission.info = bc.UnitType.Worker
-            return new_mission
-        elif chance > production_chance[1]:
-            new_mission = Mission()
-            new_mission.action = Missions.TrainBot
-            new_mission.info = bc.UnitType.Knight
-            return new_mission
-        elif chance > production_chance[2]:
-            new_mission = Mission()
-            new_mission.action = Missions.TrainBot
-            new_mission.info = bc.UnitType.Healer
-            return new_mission
-        elif chance > production_chance[3]:
+        #if not self.MustBuildRocket and chance > production_chance[0]:
+        #    new_mission = Mission()
+        #    new_mission.action = Missions.TrainBot
+        #    new_mission.info = bc.UnitType.Worker
+        #    return new_mission
+        #elif not self.MustBuildRocket and  chance > production_chance[1]:
+        #    new_mission = Mission()
+        #    new_mission.action = Missions.TrainBot
+        #    new_mission.info = bc.UnitType.Knight
+        #    return new_mission
+        #elif not self.MustBuildRocket and  chance > production_chance[2]:
+        #    new_mission = Mission()
+        #    new_mission.action = Missions.TrainBot
+        #    new_mission.info = bc.UnitType.Healer
+        #    return new_mission
+        if not self.MustBuildRocket and \
+        self.game_controller.karbonite() >= bc.UnitType.Ranger.factory_cost():
             new_mission = Mission()
             new_mission.action = Missions.TrainBot
             new_mission.info = bc.UnitType.Ranger
             return new_mission
-        elif chance > production_chance[4]:
-            new_mission = Mission()
-            new_mission.action = Missions.TrainBot
-            new_mission.info = bc.UnitType.Mage
-            return new_mission
+        #elif not self.MustBuildRocket and  chance > production_chance[4]:
+        #    new_mission = Mission()
+        #    new_mission.action = Missions.TrainBot
+        #    new_mission.info = bc.UnitType.Mage
+        #    return new_mission
         else:
             new_mission = Mission()
             new_mission.action = Missions.Idle

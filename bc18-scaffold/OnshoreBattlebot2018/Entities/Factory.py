@@ -13,9 +13,12 @@ class Factory(IStructure):
         self.round_start_production = 0
         self.is_working = False
         self.directions = list(bc.Direction)
+        self.workerUnits = None
 
     def run(self):
-        """This runs the garrison"""
+        
+        #if self.unit.structure_is_built():
+        
         self.update_mission()
 
         garrison = self.unit.structure_garrison()
@@ -39,6 +42,11 @@ class Factory(IStructure):
                 else:
                     print("Factory [{}] producing robot. Rounds Left: {}".\
                     format(self.unit.id, self.unit.factory_rounds_left()))
+        #else:
+            #print("Factory {} incomplete.".format(self.unit.id))
+            #if not self.workerUnits is None and len(self.workerUnits) < 5:
+                #Create build mission
+            #self.mission_controller.CreateBuildMission(self.unit)
 
     def try_produce_robot(self, unit_type):
         """This trys to produce robots"""

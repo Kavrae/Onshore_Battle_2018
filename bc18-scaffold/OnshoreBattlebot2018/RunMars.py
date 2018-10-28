@@ -25,7 +25,7 @@ class RunMars:
         self.mission_controller = MissionController(gameController, self.strategy_controller, \
         self.map_controller, self.research_tree_controller)
         self.unit_controller = UnitController(gameController, self.strategy_controller, \
-        self.pathfinding_controller, self.mission_controller)
+        self.pathfinding_controller, self.mission_controller, self.map_controller, self.research_tree_controller)
         self.targetting_controller = TargettingController(gameController, \
         self.map_controller, self.strategy_controller, self.unit_controller, self.enemy_tracking_controller)
 
@@ -38,4 +38,4 @@ class RunMars:
         if self.round == 1:
             print("First round on Earth.  Initializing map")
             self.map_controller.InitializeMarsMap()
-        print("Do mars turn things here")
+        #print("Do mars turn things here")

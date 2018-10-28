@@ -2,15 +2,17 @@ import battlecode as bc
 import random
 import sys
 import traceback
+from Controllers.MissionController import *
 
 class IRobot:
     """This is the IRobot"""
     def __init__(self, gameController, unitController, \
-    pathfindingController, missionController, unit, unitType):
+    pathfindingController, missionController, unit, unitType, mapController):
         self.game_controller = gameController
         self.unit_controller = unitController
         self.pathfinding_controller = pathfindingController
         self.mission_controller = missionController
+        self.map_controller = mapController
 
         #Reference to the BattleCode unit object that the server side code tracks
         self.unit = unit
@@ -31,6 +33,11 @@ class IRobot:
         #To allow for Missions that have a secondary action
         self.perform_second_action = False
 
+        #last position
+        self.lastPosition = None
+        
+        self.directions = list(bc.Direction)
+
     #Actions that will be run at the end of every robot's turn
     def run(self):
         """This runs actions at the end of the turn"""
@@ -42,8 +49,9 @@ class IRobot:
             self.mission = self.mission_controller.get_mission(self.unit_type)
             self.mission_start_round = self.game_controller.round()
             self.target_location = None
-            print("Robot with id {} obtaining new mission {}".\
-            format(self.unit.id, self.mission.action))
+            if not self.mission.action == Missions.Mining:
+                print("Robot with id {} obtaining new mission {}".\
+                format(self.unit.id, self.mission.action))
 
     def reset_mission(self):
         """This resets the mission"""
@@ -53,7 +61,7 @@ class IRobot:
     #TODO Check that the next direction is still possible.  If not, recalculate
     def update_path_to_target(self):
         """This updates path to target"""
-        if self.target_location is not None and (self.path is None or len(self.path) == 0):
+        if not self.unit.location.is_in_garrison() and self.target_location is not None and (self.path is None or len(self.path) == 0):
             print("Creating new path from {},{} to {},{}".format\
             (self.unit.location.map_location().x, self.unit.location.map_location().y, \
             self.target_location.x, self.target_location.y))
@@ -65,35 +73,50 @@ class IRobot:
         if not self.path is None:
             if len(self.path) > 0:
                 direction = self.path[-1]
-                print("Walking in direction {}".format(direction))
-                if self.try_move(direction):
+                #print("Walking in direction {}".format(direction))
+                if not self.unit.location.is_in_garrison() and self.try_move(direction):
                     self.path.pop()
+                else:
+                    self.one_random_movement()
+                    self.update_path_to_target()
             else:
-                print("destination reached")
+                #print("Robot {} path length 0.".format(self.unit.id))
+                pass
+    def isStuck(self):
+        if self.lastPosition is None:
+            self.lastPosition = self.unit.location.map_location()
+            return False
+
+        currentLocation = self.unit.location.map_location()
+        if self.lastPosition.x == currentLocation.x and \
+        self.lastPosition.y == currentLocation.y:
+            return True
+        else:
+            return False
 
     def has_reached_destination(self):
         """Shows if you have reached the destination"""
         if self.target_location is None:
-            print("Robot {} targetLocation is None.".format(self.unit.id))
-            return True
+            #print("Robot {} targetLocation is None.".format(self.unit.id))
+            return False
         else:
             if self.unit.location.map_location().x == self.target_location.x and \
                 self.unit.location.map_location().y == self.target_location.y:
                 self.target_location = None
                 self.perform_second_action = True
-                print("Robot with id {} has reached it's destination.".format(self.unit.id))
+                #print("Robot with id {} has reached it's destination.".format(self.unit.id))
                 return True
             else:
-                print("Robot with id {} still moving to destination.".format(self.unit.id))
+                #print("Robot with id {} still moving to destination.".format(self.unit.id))
                 return False
 
     def try_move(self, direction):
         """Lets you try to move"""
         if not self.game_controller.is_move_ready(self.unit.id):
-            print("Move for Robot [{}] is not ready".format(self.unit.id))
+            #print("Move for Robot [{}] is not ready".format(self.unit.id))
             return False
         if not self.game_controller.can_move(self.unit.id, direction):
-            print("Robot [{}] cannot move in direction {}".format(self.unit.id, direction))
+            #print("Robot [{}] cannot move in direction {}".format(self.unit.id, direction))
             return False
 
         self.game_controller.move_robot(self.unit.id, direction)
